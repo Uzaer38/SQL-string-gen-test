@@ -8,9 +8,10 @@
 
   <ItemGroup>
     <Compile Include="From.fs" />
-    <Compile Include="Join.fs" />
     <Compile Include="Select.fs" />
-    <Compile Include="Where.fs" />
+    <Compile Include="Condition.fs" />
+	<Compile Include="Join.fs" />
+	<Compile Include="Query.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
 
