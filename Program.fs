@@ -10,23 +10,22 @@ let table1 = {
 }
 
 let query = {
-    Select = None
 
-    //Select = {
+    Select = Some {
 
-    //    Fields = [{
-    //    Table = table1
-    //    Name = "column1"
-    //    Alias = "c1"
-    //    };
+        Fields = [{
+        Table = table1
+        Name = "column1"
+        Alias = Some "c1"
+        };
 
-    //    {
-    //    Table = table1
-    //    Name = "column2"
-    //    Alias = "c2"
-    //    }]
+        {
+        Table = table1
+        Name = "column2"
+        Alias = Some "c2"
+        }]
 
-    //}
+    }
 
     From = {
         Table = table1
