@@ -10,8 +10,12 @@ type Comparator =
     | LessThanOrEqual
     | GreaterThanOrEqual
 
+type Value =
+    | Column of Column
+    | Literal of string
+
 type Condition = {
     Comparator : Comparator
-    Var1 : Column
-    Var2 : Column
+    Var1 : Value
+    Var2 : Value
 }

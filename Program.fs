@@ -9,21 +9,24 @@ let table1 = {
     Alias = Some "t1"
 }
 
-let query = {
-
-    Select = Some {
-
-        Fields = [{
+let column1 = {
         Table = table1
         Name = "column1"
         Alias = Some "c1"
-        };
+        }
 
+let column2 =
         {
         Table = table1
         Name = "column2"
         Alias = Some "c2"
-        }]
+        }
+
+let query = {
+
+    Select = Some {
+
+        Fields = [column1; column2]
 
     }
 
@@ -33,7 +36,11 @@ let query = {
 
     Join = None
 
-    Where = None
+    Where = Some {
+        Comparator = Equals
+        Var1 = Column column1
+        Var2 = Literal "0"
+    }
 }
 
 let ToSql query =
@@ -74,7 +81,19 @@ let ToSql query =
 
     let whereClause = 
         match query.Where with
-            //| Some condition -> "\nWHERE " + condition
+            | Some condition -> "\nWHERE " + match condition.Var1 with
+                                                | Column col -> col.Name
+                                                | Literal str -> str 
+                                                + match condition.Comparator with
+                                                    | LessThan -> " < "
+                                                    | GreaterThan -> " > "
+                                                    | Equals -> " == "
+                                                    | NotEquals -> " != "
+                                                    | LessThanOrEqual -> " <= "
+                                                    | GreaterThanOrEqual -> " >= "
+                                                    + match condition.Var2 with
+                                                        | Column col -> col.Name
+                                                        | Literal str -> str
             | None -> ""
 
     let str = selectClause + fromClause + joinClause + whereClause
