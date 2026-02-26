@@ -9,6 +9,11 @@ let table1 = {
     Alias = Some "t1"
 }
 
+let table2 = {
+    Name = "table2"
+    Alias = Some "t2"
+}
+
 let column1 = {
         Table = table1
         Name = "column1"
@@ -25,7 +30,6 @@ let column2 =
 let query = {
 
     Select = Some {
-
         Fields = [column1; column2]
 
     }
@@ -34,7 +38,15 @@ let query = {
         Table = table1
     }
 
-    Join = None
+    Join = Some [{
+        Kind = Inner
+        Table2 = table2
+        OnCondition = {
+            Comparator = Equals
+            Var1 = Column column1
+            Var2 = Literal "0"
+        }
+    }]
 
     Where = Some {
         Comparator = Equals
@@ -42,6 +54,25 @@ let query = {
         Var2 = Literal "0"
     }
 }
+
+let renderComparator comp =
+    match comp with
+        | LessThan -> " < "
+        | GreaterThan -> " > "
+        | Equals -> " = "
+        | NotEquals -> " <> "
+        | LessThanOrEqual -> " <= "
+        | GreaterThanOrEqual -> " >= "
+
+let renderValue value =
+    match value with
+        | Column col -> col.Name
+        | Literal str -> str
+
+let renderAlias alias =
+    match alias with
+        | Some alias -> " " + alias
+        | None -> ""
 
 let ToSql query =
     let fields =
@@ -57,10 +88,8 @@ let ToSql query =
             | Some select -> "\nSELECT " + fields
             | None -> "\nSELECT *"
 
-    let fromClause = 
-        match query.From.Table.Alias with
-            | Some alias -> "\nFROM " + query.From.Table.Name + " " + alias
-            | None -> "\nFROM " + query.From.Table.Name
+    let fromClause =
+        "\nFROM " + query.From.Table.Name + renderAlias query.From.Table.Alias
 
     let joinClause = 
         match query.Join with
@@ -72,28 +101,23 @@ let ToSql query =
                         | LeftOuter -> "\nLEFT OUTER JOIN "
                         | RightOuter -> "\nRIGHT OUTER JOIN "
                     +
-                    match query.From.Table.Alias with
-                        | Some alias -> alias
-                        | None -> query.From.Table.Name
+                    match j.Table2.Alias with
+                        | Some alias -> j.Table2.Name + " " + alias
+                        | None -> j.Table2.Name
+                    +
+                    "\n    ON " + query.From.Table.Name + "." + renderValue j.OnCondition.Var1
+                                                                    + renderComparator j.OnCondition.Comparator
+                                                                        + renderValue j.OnCondition.Var2
+                                                                            
                     )
                 |> String.concat "\n"
             | None -> ""
 
     let whereClause = 
         match query.Where with
-            | Some condition -> "\nWHERE " + match condition.Var1 with
-                                                | Column col -> col.Name
-                                                | Literal str -> str 
-                                                + match condition.Comparator with
-                                                    | LessThan -> " < "
-                                                    | GreaterThan -> " > "
-                                                    | Equals -> " == "
-                                                    | NotEquals -> " != "
-                                                    | LessThanOrEqual -> " <= "
-                                                    | GreaterThanOrEqual -> " >= "
-                                                    + match condition.Var2 with
-                                                        | Column col -> col.Name
-                                                        | Literal str -> str
+            | Some condition -> "\nWHERE " + query.From.Table.Name + "." + renderValue condition.Var1
+                                                                            + renderComparator condition.Comparator
+                                                                                + renderValue condition.Var2
             | None -> ""
 
     let str = selectClause + fromClause + joinClause + whereClause
