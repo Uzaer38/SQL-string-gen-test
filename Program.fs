@@ -66,7 +66,7 @@ let query1 = {
     };
     {
         Connector = Some Or
-        Comparator = Equals
+        Comparator = LessThanOrEqual
         Var1 = Column t1column2
         Var2 = Literal "42"
     };
@@ -190,7 +190,7 @@ let renderAliasOrName alias name =
         | Some alias -> alias
         | None -> name
 
-let renderValue value query =
+let renderValue value =
     match value with
         | Column col -> renderAliasOrName col.Table.Alias col.Table.Name + "." + col.Name
         | Literal str -> str
@@ -232,9 +232,9 @@ let ToSql query =
                     +
                     "\n    ON " 
                     + renderConnector j.OnCondition.Connector
-                    + renderValue j.OnCondition.Var1 query
+                    + renderValue j.OnCondition.Var1
                     + renderComparator j.OnCondition.Comparator
-                    + renderValue j.OnCondition.Var2 query
+                    + renderValue j.OnCondition.Var2
                                                                             
                     )
                 |> String.concat "\n")
@@ -247,9 +247,9 @@ let ToSql query =
                     + (conditions
                         |> List.map(fun c ->
                             renderConnector c.Connector
-                            + renderValue c.Var1 query
+                            + renderValue c.Var1
                             + renderComparator c.Comparator
-                            + renderValue c.Var2 query
+                            + renderValue c.Var2
                             )
                         |> String.concat "\n    "
                     )
