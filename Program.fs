@@ -42,18 +42,34 @@ let query = {
         Kind = Inner
         Table2 = table2
         OnCondition = {
+            Connector = None
             Comparator = Equals
             Var1 = Column column1
-            Var2 = Literal "0"
+            Var2 = Column column2
         }
     }]
 
-    Where = Some {
+    Where = Some [{
+        Connector = None
         Comparator = Equals
         Var1 = Column column1
+        Var2 = Column column2
+    };
+    {
+        Connector = Some And
+        Comparator = GreaterThan
+        Var1 = Column column1
         Var2 = Literal "0"
-    }
+    }]
 }
+
+let renderConnector con =
+    match con with
+        | Some con ->
+            match con with
+                | And -> "AND "
+                | Or -> "OR "
+        | None -> ""
 
 let renderComparator comp =
     match comp with
@@ -74,6 +90,11 @@ let renderAlias alias =
         | Some alias -> " " + alias
         | None -> ""
 
+let renderAliasOrName alias name =
+    match alias with
+        | Some alias -> alias
+        | None -> name
+
 let ToSql query =
     let fields =
         match query.Select with
@@ -81,33 +102,32 @@ let ToSql query =
                 select.Fields
                 |> List.map (fun col -> col.Name)
                 |> String.concat ", "
-            | None -> ""
+            | None -> "*"
 
-    let selectClause =
-        match query.Select with
-            | Some select -> "\nSELECT " + fields
-            | None -> "\nSELECT *"
+    let selectClause = "\nSELECT " + fields
 
     let fromClause =
         "\nFROM " + query.From.Table.Name + renderAlias query.From.Table.Alias
 
     let joinClause = 
         match query.Join with
-            | Some join ->
-                join
+            | Some joins ->
+                joins
                 |> List.map(fun j ->
                     match j.Kind with
                         | Inner -> "\nINNER JOIN "
                         | LeftOuter -> "\nLEFT OUTER JOIN "
                         | RightOuter -> "\nRIGHT OUTER JOIN "
                     +
-                    match j.Table2.Alias with
-                        | Some alias -> j.Table2.Name + " " + alias
-                        | None -> j.Table2.Name
+                    j.Table2.Name + renderAlias j.Table2.Alias
                     +
-                    "\n    ON " + query.From.Table.Name + "." + renderValue j.OnCondition.Var1
-                                                                    + renderComparator j.OnCondition.Comparator
-                                                                        + renderValue j.OnCondition.Var2
+                    "\n    ON " 
+                    + renderConnector j.OnCondition.Connector
+                    + renderAliasOrName query.From.Table.Alias query.From.Table.Name  + "." 
+                    + renderValue j.OnCondition.Var1
+                    + renderComparator j.OnCondition.Comparator
+                    + renderAliasOrName query.From.Table.Alias query.From.Table.Name  + "." 
+                    + renderValue j.OnCondition.Var2
                                                                             
                     )
                 |> String.concat "\n"
@@ -115,9 +135,19 @@ let ToSql query =
 
     let whereClause = 
         match query.Where with
-            | Some condition -> "\nWHERE " + query.From.Table.Name + "." + renderValue condition.Var1
-                                                                            + renderComparator condition.Comparator
-                                                                                + renderValue condition.Var2
+            | Some conditions
+                -> "\nWHERE "
+                    + (conditions
+                        |> List.map(fun c ->
+                            renderConnector c.Connector
+                            + renderAliasOrName query.From.Table.Alias query.From.Table.Name + "."
+                            + renderValue c.Var1
+                            + renderComparator c.Comparator
+                            + renderAliasOrName query.From.Table.Alias query.From.Table.Name + "."
+                            + renderValue c.Var2
+                            )
+                        |> String.concat "\n    "
+                    )
             | None -> ""
 
     let str = selectClause + fromClause + joinClause + whereClause

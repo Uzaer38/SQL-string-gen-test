@@ -8,5 +8,5 @@ type Query = {
     Select : Select option
     From : From
     Join : Join list option
-    Where : Condition option
+    Where : Condition list option
 }
