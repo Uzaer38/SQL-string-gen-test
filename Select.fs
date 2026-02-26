@@ -8,5 +8,5 @@ type Column = {
 }
 
 type Select = {
-    Fields : Column list
+    Fields : Column list option
 }

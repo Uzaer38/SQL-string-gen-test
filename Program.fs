@@ -27,11 +27,88 @@ let column2 =
         Alias = Some "c2"
         }
 
-let query = {
+let column3 =
+        {
+        Table = table2
+        Name = "column2"
+        Alias = Some "cc"
+        }
 
-    Select = Some {
-        Fields = [column1; column2]
+let query1 = {
 
+    Select = {
+        Fields = Some [column1; column2]
+    }
+
+    From = {
+        Table = table1
+    }
+
+    Join = Some [{
+        Kind = Inner
+        Table2 = table2
+        OnCondition = {
+            Connector = None
+            Comparator = Equals
+            Var1 = Column column1
+            Var2 = Column column3
+        }
+    }]
+
+    Where = Some [{
+        Connector = None
+        Comparator = Equals
+        Var1 = Column column1
+        Var2 = Column column3
+    };
+    {
+        Connector = Some And
+        Comparator = GreaterThan
+        Var1 = Column column1
+        Var2 = Literal "0"
+    }]
+}
+
+let query2 = {
+
+    Select = {
+        Fields = Some [column1; column2]
+
+    }
+
+    From = {
+        Table = table1
+    }
+
+    Join = Some [{
+        Kind = Inner
+        Table2 = table2
+        OnCondition = {
+            Connector = None
+            Comparator = Equals
+            Var1 = Column column1
+            Var2 = Column column2
+        }
+    }]
+
+    Where = Some [{
+        Connector = None
+        Comparator = Equals
+        Var1 = Column column1
+        Var2 = Column column2
+    };
+    {
+        Connector = Some And
+        Comparator = GreaterThan
+        Var1 = Column column1
+        Var2 = Literal "0"
+    }]
+}
+
+let query3 = {
+
+    Select = {
+        Fields = Some [column1; column2]
     }
 
     From = {
@@ -80,9 +157,14 @@ let renderComparator comp =
         | LessThanOrEqual -> " <= "
         | GreaterThanOrEqual -> " >= "
 
-let renderValue value =
+let renderAliasOrName alias name =
+    match alias with
+        | Some alias -> alias
+        | None -> name
+
+let renderValue value query =
     match value with
-        | Column col -> col.Name
+        | Column col -> renderAliasOrName col.Table.Alias col.Table.Name + "." + col.Name
         | Literal str -> str
 
 let renderAlias alias =
@@ -90,17 +172,14 @@ let renderAlias alias =
         | Some alias -> " " + alias
         | None -> ""
 
-let renderAliasOrName alias name =
-    match alias with
-        | Some alias -> alias
-        | None -> name
-
 let ToSql query =
     let fields =
-        match query.Select with
-            | Some select -> 
-                select.Fields
-                |> List.map (fun col -> col.Name)
+        match query.Select.Fields with
+            | Some fields -> 
+                fields
+                |> List.map (fun col -> match col.Alias with
+                                        | Some alias -> renderAliasOrName col.Table.Alias col.Table.Name + "." + col.Name + " AS " + alias
+                                        | None -> renderAliasOrName col.Table.Alias col.Table.Name + "." + col.Name)
                 |> String.concat ", "
             | None -> "*"
 
@@ -123,11 +202,9 @@ let ToSql query =
                     +
                     "\n    ON " 
                     + renderConnector j.OnCondition.Connector
-                    + renderAliasOrName query.From.Table.Alias query.From.Table.Name  + "." 
-                    + renderValue j.OnCondition.Var1
+                    + renderValue j.OnCondition.Var1 query
                     + renderComparator j.OnCondition.Comparator
-                    + renderAliasOrName query.From.Table.Alias query.From.Table.Name  + "." 
-                    + renderValue j.OnCondition.Var2
+                    + renderValue j.OnCondition.Var2 query
                                                                             
                     )
                 |> String.concat "\n"
@@ -140,11 +217,9 @@ let ToSql query =
                     + (conditions
                         |> List.map(fun c ->
                             renderConnector c.Connector
-                            + renderAliasOrName query.From.Table.Alias query.From.Table.Name + "."
-                            + renderValue c.Var1
+                            + renderValue c.Var1 query
                             + renderComparator c.Comparator
-                            + renderAliasOrName query.From.Table.Alias query.From.Table.Name + "."
-                            + renderValue c.Var2
+                            + renderValue c.Var2 query
                             )
                         |> String.concat "\n    "
                     )
@@ -153,5 +228,6 @@ let ToSql query =
     let str = selectClause + fromClause + joinClause + whereClause
     str
 
-printfn "%s" (ToSql query)
-System.Console.ReadLine() |> ignore
+printfn "%s" (ToSql query1)
+printfn "%s" (ToSql query2)
+printfn "%s" (ToSql query3)
