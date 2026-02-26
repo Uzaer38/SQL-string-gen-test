@@ -14,57 +14,66 @@ let table2 = {
     Alias = Some "t2"
 }
 
-let column1 = {
+let table3 = {
+    Name = "table3"
+    Alias = Some "t3"
+}
+
+let t1column1 = {
         Table = table1
         Name = "column1"
         Alias = Some "c1"
         }
 
-let column2 =
+let t1column2 =
         {
         Table = table1
         Name = "column2"
         Alias = Some "c2"
         }
 
-let column3 =
+let t2column1 =
         {
         Table = table2
-        Name = "column2"
-        Alias = Some "cc"
+        Name = "column1"
+        Alias = Some "c3"
+        }
+
+let t3column4 =
+        {
+        Table = table3
+        Name = "column4"
+        Alias = Some "c4"
         }
 
 let query1 = {
 
     Select = {
-        Fields = Some [column1; column2]
+        Fields = None
     }
 
     From = {
         Table = table1
     }
 
-    Join = Some [{
-        Kind = Inner
-        Table2 = table2
-        OnCondition = {
-            Connector = None
-            Comparator = Equals
-            Var1 = Column column1
-            Var2 = Column column3
-        }
-    }]
+    Join = None
 
     Where = Some [{
         Connector = None
         Comparator = Equals
-        Var1 = Column column1
-        Var2 = Column column3
+        Var1 = Column t1column1
+        Var2 = Literal "1"
+    };
+    {
+        Connector = Some Or
+        Comparator = Equals
+        Var1 = Column t1column2
+        Var2 = Literal "42"
     };
     {
         Connector = Some And
         Comparator = GreaterThan
-        Var1 = Column column1
+        Var1 = Column t1column1
         Var2 = Literal "0"
     }]
 }
@@ -72,8 +81,7 @@ let query1 = {
 let query2 = {
 
     Select = {
-        Fields = Some [column1; column2]
-
+        Fields = Some [t1column1; t1column2]
     }
 
     From = {
@@ -86,21 +94,31 @@ let query2 = {
         OnCondition = {
             Connector = None
             Comparator = Equals
-            Var1 = Column column1
-            Var2 = Column column2
+            Var1 = Column t1column1
+            Var2 = Column t2column1
+        }
+    };
+    {
+        Kind = Inner
+        Table2 = table3
+        OnCondition = {
+            Connector = None
+            Comparator = Equals
+            Var1 = Column t1column1
+            Var2 = Column t3column4
         }
     }]
 
     Where = Some [{
         Connector = None
         Comparator = Equals
-        Var1 = Column column1
-        Var2 = Column column2
+        Var1 = Column t1column1
+        Var2 = Literal "'Bob'"
     };
     {
-        Connector = Some And
-        Comparator = GreaterThan
-        Var1 = Column column1
+        Connector = Some Or
+        Comparator = NotEquals
+        Var1 = Column t1column2
         Var2 = Literal "0"
     }]
 }
@@ -108,7 +126,7 @@ let query2 = {
 let query3 = {
 
     Select = {
-        Fields = Some [column1; column2]
+        Fields = Some [t1column1; t1column2; t2column1]
     }
 
     From = {
@@ -116,26 +134,36 @@ let query3 = {
     }
 
     Join = Some [{
-        Kind = Inner
+        Kind = LeftOuter
         Table2 = table2
         OnCondition = {
             Connector = None
             Comparator = Equals
-            Var1 = Column column1
-            Var2 = Column column2
+            Var1 = Column t1column1
+            Var2 = Column t2column1
+        }
+    };
+    {
+        Kind = RightOuter
+        Table2 = table3
+        OnCondition = {
+            Connector = None
+            Comparator = LessThan
+            Var1 = Column t1column1
+            Var2 = Column t3column4
         }
     }]
 
     Where = Some [{
         Connector = None
         Comparator = Equals
-        Var1 = Column column1
-        Var2 = Column column2
+        Var1 = Column t1column1
+        Var2 = Column t1column2
     };
     {
         Connector = Some And
         Comparator = GreaterThan
-        Var1 = Column column1
+        Var1 = Column t1column1
         Var2 = Literal "0"
     }]
 }
@@ -191,12 +219,14 @@ let ToSql query =
     let joinClause = 
         match query.Join with
             | Some joins ->
-                joins
+                "\n"
+                +
+                (joins
                 |> List.map(fun j ->
                     match j.Kind with
-                        | Inner -> "\nINNER JOIN "
-                        | LeftOuter -> "\nLEFT OUTER JOIN "
-                        | RightOuter -> "\nRIGHT OUTER JOIN "
+                        | Inner -> "INNER JOIN "
+                        | LeftOuter -> "LEFT OUTER JOIN "
+                        | RightOuter -> "RIGHT OUTER JOIN "
                     +
                     j.Table2.Name + renderAlias j.Table2.Alias
                     +
@@ -207,7 +237,7 @@ let ToSql query =
                     + renderValue j.OnCondition.Var2 query
                                                                             
                     )
-                |> String.concat "\n"
+                |> String.concat "\n")
             | None -> ""
 
     let whereClause = 
